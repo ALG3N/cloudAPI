@@ -151,7 +151,7 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 	resp, _ := client.Do(req)
 	self.count++
 
-	fmt.Println(resp.Cookies())
+	// fmt.Println(resp.Cookies())
 
 	for _, cookie := range resp.Cookies() {
 		if cookie.Name == "_abck" {
@@ -169,17 +169,24 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 
 	dt := time.Now()
 
-	color.Green("[%v] Sensor post [%v] - (%v)", dt.Format("15:04:05.000"), self.count, resp.StatusCode)
+	color.Yellow("[%v] Sensor post [%v] - (%v)", dt.Format("15:04:05.000"), self.count, resp.StatusCode)
 
 	arr := fmt.Sprintf("%v,%v,%v", string(b), self.session, p.UA)
 
-	if strings.Contains(string(arr[2]), "||") {
+	array := strings.Split(arr, ",")
+
+	if strings.Contains(string(array[1]), "||") {
 		self.challenge = true
 	} else {
 		self.challenge = false
 	}
 
+	cookie := string(array[1])
+	// fmt.Println(cookie)
+
 	if self.count >= 3 && !self.challenge {
+		color.Green("[%v] Valid cookie recieved [%v] - (Cookie length: %v)", dt.Format("15:04:05.000"), self.count, len(cookie))
+
 		v, _ := url.Parse("asos.com")
 
 		RemoveCookie(v, "_abck")
