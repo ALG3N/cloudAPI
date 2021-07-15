@@ -55,6 +55,10 @@ async function start() {
       console.log("Generated invalid cookie, retrying");
       await timeout(3000);
       await start();
+    } else if (post3[1].includes("||")) {
+      console.log("Generated invalid cookie, retrying");
+      await timeout(3000);
+      await start();
     }
     console.log("Generated valid cookie:", post3[1]);
   }

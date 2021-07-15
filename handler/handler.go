@@ -53,13 +53,8 @@ func Initialize() {
 
 	session.count = 0
 
-	// cookies := client.Jar.Cookies("www.")
-	// for cookie, _ := range cookies {
-
-	// }
 	session.startHandler()
 }
-
 
 func (self *Session) startHandler() {
 	// Fiber instance
@@ -81,16 +76,22 @@ func (self *Session) Init(c *fiber.Ctx) {
 
 	self.URL = queryValue
 
-	if self.count >= 0 {
-		self.count = 0
+	// if self.count >= 0 {
+	// 	self.count = 0
 
-		v, _ := url.Parse("asos.com")
+	// 	v, _ := url.Parse("asos.com")
 
-		fmt.Println(client.Jar.Cookies(v))
+	// 	// fmt.Println(client.Jar.Cookies(v))
 
-		RemoveCookie(v, "_abck")
-		RemoveCookie(v, "bm_sz")
-	}
+	// 	// fmt.Println(client.Jar.Cookies(v))
+	// 	cookies := client.Jar.Cookies(v)
+	// 	for cookie, _ := range cookies {
+	// 		fmt.Println(cookie)
+	// 	}
+
+	// 	// RemoveCookie(v, "_abck")
+	// 	// RemoveCookie(v, "bm_sz")
+	// }
 
 	req, err := http.NewRequest("GET", queryValue, strings.NewReader(""))
 
@@ -124,17 +125,6 @@ func (self *Session) Init(c *fiber.Ctx) {
 }
 
 func (self *Session) tlsClient(c *fiber.Ctx) {
-
-	if self.count >= 3 && !self.challenge {
-		self.count = 0
-
-		v, _ := url.Parse("asos.com")
-
-		fmt.Println(client.Jar.Cookies(v))
-
-		RemoveCookie(v, "_abck")
-		RemoveCookie(v, "bm_sz")
-	}
 	p := new(Payload)
 
 	if err := c.BodyParser(p); err != nil {
@@ -187,6 +177,16 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 		self.challenge = true
 	} else {
 		self.challenge = false
+	}
+
+	if self.count >= 3 && !self.challenge {
+		v, _ := url.Parse("asos.com")
+
+		RemoveCookie(v, "_abck")
+		RemoveCookie(v, "bm_sz")
+
+		self.session = ""
+		self.count = 0
 	}
 
 	c.Send(arr)
