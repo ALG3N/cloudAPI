@@ -1,4 +1,4 @@
-module main
+module github.com/ALG3N/cloudAPI
 
 go 1.16
 
