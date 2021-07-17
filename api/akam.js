@@ -6,61 +6,85 @@ async function timeout(ms) {
 }
 
 async function start() {
-  var url = "https://www.asos.com/men/";
+  var url = "https://www.shopdisney.com";
   var postUrl =
-    "https://www.asos.com/xHj31xooX/H8hkbQd5/zVSx4o9z/Ss/kEOf4mGwpaui/T1ImORN2cQE/VGtpOFta/Sis";
+    "https://www.shopdisney.com/kt8C3jigntyo/HSluwPqq9Z/Fi/V9YQpNzG/R0l7YXhJDAQ/UgRcLk/MRdE0";
 
-  var invalid = await getCookie(url);
+  for (let i = 0; i < 50; i++) {
+    let invalid = await getCookie(url);
 
-  // var invalid =
-  //   "0F956D1FC2AC09B0C0D8A9DA74586B5E~-1~YAAQNBvdWBJR9xd6AQAAX3/ypAaOwBZZDbRjF1eFzviJcMRCRFu85iJFYw66rM2iNDCh/mMkL/wrTtYcwtRV8y6MM1L1iYddOWP7NBny+8eKFQ2A6LxW7Q0Tlp+9OEP9m3Dbbms16zyUdxu/gOAJECH9XuZ6BVU0RM4trCgKg5dqP8oQb6AW0UT9Cea1hoWGc4jMwAk32/RYtyyT41NUSifMrl7WpKFsqckqtcwS7yDpV7mB0rJne5scBFQ04eEVTK8oJJa11vm3F4fniympOuMHBpfRCGkU5sjIH2h3ozgVxZJ+/cbzJmHP3pxklM8cKogM83P8qmCrSyG3ZwsazDRx9fitcSmYOrAuqQk1nV+Yx2BeTv3RvYzh~-1~-1~-1";
+    // console.log(invalid);
 
-  console.log(invalid);
+    let firstRes = await firstGen(url, invalid);
 
-  var firstRes = await firstGen(url, invalid);
+    // console.log(firstRes);
 
-  // console.log(firstRes);
+    let firstPostRes = await firstPost(postUrl, firstRes[1], firstRes[2]);
 
-  var firstPostRes = await firstPost(postUrl, firstRes[1], firstRes[2]);
+    let post1 = firstPostRes.split(",");
+    console.log("First post sent...");
 
-  var post1 = firstPostRes.split(",");
-  console.log("First post sent...");
+    let secondRes = await secondGen(url, post1[1]);
 
-  var secondRes = await secondGen(url, post1[1]);
+    // console.log(secondRes);
 
-  // console.log(secondRes);
+    let secondPostRes = await secondPost(postUrl, secondRes[1], firstRes[2]);
 
-  var secondPostRes = await secondPost(postUrl, secondRes[1], firstRes[2]);
+    let post2 = secondPostRes.split(",");
+    console.log("Second post sent...");
 
-  var post2 = secondPostRes.split(",");
-  console.log("Second post sent...");
+    let cooked = await checkCookies(post2[1]);
 
-  var cooked = await checkCookies(post2[1]);
+    // console.log(post2[1]);
 
-  // console.log(post2[1]);
+    if (cooked && post2[0] !== '{"success": false}') {
+      console.log("Cookie gen successful!");
+    } else {
+      console.log("Doing third post..");
 
-  if (cooked && post2[0] !== '{"success": false}') {
-    console.log("Cookie gen successful!");
-  } else {
-    console.log("Doing third post..");
+      let thirdRes = await thirdGen(url, post2[1]);
 
-    var thirdRes = await thirdGen(url, post2[1]);
+      let thirdPostRes = await thirdPost(postUrl, thirdRes[1], firstRes[2]);
 
-    var thirdPostRes = await thirdPost(postUrl, thirdRes[1], firstRes[2]);
+      let post3 = thirdPostRes.split(",");
+      console.log("Third post sent...");
 
-    var post3 = thirdPostRes.split(",");
-    console.log("Third post sent...");
+      if (post3[0] === '{"success": false}') {
+        console.log("Generated invalid cookie, retrying");
+        console.log(post3[0]);
+        console.log(post3[1]);
+        await timeout(3000);
+        await start();
+      } else if (post3[1].includes("||")) {
+        console.log("Generated invalid cookie, retrying");
+        console.log(post3[1]);
+        await timeout(2250);
+        await start();
 
-    if (post3[0] === '{"success": false}') {
-      console.log("Generated invalid cookie, retrying");
-      await timeout(3000);
-      await start();
-    } else if (post3[1].includes("||")) {
-      console.log("Generated invalid cookie, retrying");
-      await timeout(3000);
+        // console.log("Doing forth post..");
+
+        // let forthRes = await thirdGen(url, post2[1]);
+
+        // let forthPostRes = await thirdPost(postUrl, forthRes[1], firstRes[2]);
+
+        // let post4 = forthPostRes.split(",");
+        // console.log("Forth post sent...");
+
+        // if (post4[1].includes("||")) {
+        //   console.log("Generated invalid cookie, retrying");
+        //   console.log(post3[1]);
+        //   await timeout(3000);
+        //   await start();
+        // } else {
+        //   console.log("Generated valid cookie:", post3[1]);
+        //   await timeout(2250);
+        //   await start();
+        // }
+      }
+      console.log("Generated valid cookie:", post3[1]);
+      await timeout(2250);
       await start();
     }
-    console.log("Generated valid cookie:", post3[1]);
   }
 }
 

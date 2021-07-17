@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"math/rand"
 	"net/url"
 	"strings"
 	"time"
@@ -21,6 +23,9 @@ import (
 
 type Session struct {
 	session   string
+	proxy []string
+	valid     int
+	invalid   int
 	count     int
 	challenge bool
 	URL       string
@@ -38,20 +43,21 @@ var (
 	tr = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
-	jar, _ = cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Jar:       jar,
 		Transport: tr,
 	}
 )
 
-func Initialize() {
+func Initialize(proxy []string) {
 	session := Session{}
 
+	session.proxy = proxy
 	session.count = 0
+	session.valid = 0
+	session.invalid = 0
 
 	session.startHandler()
 }
@@ -71,27 +77,45 @@ func (self *Session) startHandler() {
 
 // Handler
 func (self *Session) Init(c *fiber.Ctx) {
+	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		log.Fatal(err)
+	}
+	prox := self.proxy[rand.Intn(len(self.proxy))]
+	proxy := strings.Split(string(prox), ":")
+	proxyUri := fmt.Sprintf("http://%v:%v@%v:%v", proxy[2], proxy[3], proxy[0], proxy[1])
+
+	// fmt.Println(proxyUri)
+
+	proxyUrl, _ := url.Parse(proxyUri)
+
+	tr = &http.Transport{
+		// Proxy:           http.ProxyURL(proxyUrl),
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client = &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Jar: jar,
+		Transport: tr,
+	}
+
 	queryValue := c.Query("url")
 	// fmt.Println(queryValue)
 
 	self.URL = queryValue
 
-	// if self.count >= 0 {
-	// 	self.count = 0
+	if self.count >= 0 {
+		v, _ := url.Parse("shopdisney.com")
 
-	// 	v, _ := url.Parse("asos.com")
+		RemoveCookie(v, "_abck")
+		RemoveCookie(v, "bm_sz")
 
-	// 	// fmt.Println(client.Jar.Cookies(v))
-
-	// 	// fmt.Println(client.Jar.Cookies(v))
-	// 	cookies := client.Jar.Cookies(v)
-	// 	for cookie, _ := range cookies {
-	// 		fmt.Println(cookie)
-	// 	}
-
-	// 	// RemoveCookie(v, "_abck")
-	// 	// RemoveCookie(v, "bm_sz")
-	// }
+		self.session = ""
+		self.count = 0
+	}
 
 	req, err := http.NewRequest("GET", queryValue, strings.NewReader(""))
 
@@ -112,6 +136,8 @@ func (self *Session) Init(c *fiber.Ctx) {
 			}
 		}
 	}
+
+	tr.Proxy = http.ProxyURL(proxyUrl)
 
 	dt := time.Now()
 
@@ -184,16 +210,34 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 	cookie := string(array[1])
 	// fmt.Println(cookie)
 
-	if self.count >= 3 && !self.challenge {
+	fmt.Println(len(cookie))
+
+	if self.count >= 3 && !strings.Contains(cookie, "||") && len(cookie) == 429 {
 		color.Green("[%v] Valid cookie recieved [%v] - (Cookie length: %v)", dt.Format("15:04:05.000"), self.count, len(cookie))
 
-		v, _ := url.Parse("asos.com")
+		v, _ := url.Parse("shopdisney.com")
 
 		RemoveCookie(v, "_abck")
 		RemoveCookie(v, "bm_sz")
 
+		self.valid++
 		self.session = ""
 		self.count = 0
+	} else if self.count >= 3 && strings.Contains(cookie, "||") && len(cookie) != 429 {
+		color.Red("[%v] Invalid cookie recieved [%v]", dt.Format("15:04:05.000"), self.count)
+
+		v, _ := url.Parse("shopdisney.com")
+
+		RemoveCookie(v, "_abck")
+		RemoveCookie(v, "bm_sz")
+
+		self.invalid++
+		self.session = ""
+		self.count = 0
+	}
+
+	if self.valid+self.invalid == 50 {
+		color.Green("\n\n\n[%v] Valid rate: %v", dt.Format("15:04:05.000"), self.valid/self.invalid)
 	}
 
 	c.Send(arr)
