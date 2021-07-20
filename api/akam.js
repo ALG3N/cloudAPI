@@ -6,11 +6,11 @@ async function timeout(ms) {
 }
 
 async function start() {
-  var url = "https://www.shopdisney.com";
+  var url = "https://www.offspring.co.uk";
   var postUrl =
-    "https://www.shopdisney.com/kt8C3jigntyo/HSluwPqq9Z/Fi/V9YQpNzG/R0l7YXhJDAQ/UgRcLk/MRdE0";
+    "https://www.offspring.co.uk/VKqcP6/7/-/sPJyLoEMmw/QaV3kmN89b/I0J6RQ/EGx/RPB0JBDg";
 
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 10; i++) {
     let invalid = await getCookie(url);
 
     // console.log(invalid);

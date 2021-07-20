@@ -82,13 +82,6 @@ func (self *Session) Init(c *fiber.Ctx) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	prox := self.proxy[rand.Intn(len(self.proxy))]
-	proxy := strings.Split(string(prox), ":")
-	proxyUri := fmt.Sprintf("http://%v:%v@%v:%v", proxy[2], proxy[3], proxy[0], proxy[1])
-
-	// fmt.Println(proxyUri)
-
-	proxyUrl, _ := url.Parse(proxyUri)
 
 	tr = &http.Transport{
 		// Proxy:           http.ProxyURL(proxyUrl),
@@ -137,7 +130,17 @@ func (self *Session) Init(c *fiber.Ctx) {
 		}
 	}
 
-	tr.Proxy = http.ProxyURL(proxyUrl)
+	if (len(self.proxy) > 0) {
+		prox := self.proxy[rand.Intn(len(self.proxy))]
+		proxy := strings.Split(string(prox), ":")
+		proxyUri := fmt.Sprintf("http://%v:%v@%v:%v", proxy[2], proxy[3], proxy[0], proxy[1])
+	
+		// fmt.Println(proxyUri)
+	
+		proxyUrl, _ := url.Parse(proxyUri)
+
+		tr.Proxy = http.ProxyURL(proxyUrl)
+	}
 
 	dt := time.Now()
 
@@ -210,9 +213,9 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 	cookie := string(array[1])
 	// fmt.Println(cookie)
 
-	fmt.Println(len(cookie))
+	// fmt.Println(len(cookie))
 
-	if self.count >= 3 && !strings.Contains(cookie, "||") && len(cookie) == 429 {
+	if self.count >= 3 && !strings.Contains(cookie, "||") && len(cookie) == 473 {
 		color.Green("[%v] Valid cookie recieved [%v] - (Cookie length: %v)", dt.Format("15:04:05.000"), self.count, len(cookie))
 
 		v, _ := url.Parse("shopdisney.com")
@@ -223,7 +226,7 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 		self.valid++
 		self.session = ""
 		self.count = 0
-	} else if self.count >= 3 && strings.Contains(cookie, "||") && len(cookie) != 429 {
+	} else if self.count >= 3 && len(cookie) != 473 {
 		color.Red("[%v] Invalid cookie recieved [%v]", dt.Format("15:04:05.000"), self.count)
 
 		v, _ := url.Parse("shopdisney.com")
@@ -236,8 +239,8 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 		self.count = 0
 	}
 
-	if self.valid+self.invalid == 50 {
-		color.Green("\n\n\n[%v] Valid rate: %v", dt.Format("15:04:05.000"), self.valid/self.invalid)
+	if self.valid+self.invalid == 10 {
+		color.Green("\n\n\n[%v] Valid rate: %v", dt.Format("15:04:05.000"), self.invalid/self.valid)
 	}
 
 	c.Send(arr)
