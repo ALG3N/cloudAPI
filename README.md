@@ -1,6 +1,7 @@
 # C L O U D A P I
 
-![alt-text](https://cdn.discordapp.com/attachments/503559053868269598/864987933140320256/unknown.png)
+Akamai sensor-cookie generator for version 1.75 of _abck.
+Written in Javascript and intergrated serverside with Golang.
 
 ```
 📦cloudAPI
