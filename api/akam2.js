@@ -1,8 +1,8 @@
-import fs from "fs";
-import abcK from "abck";
+import fs from 'fs';
+import abcK from 'abck';
 
 var readDevices = function () {
-  var data = fs.readFileSync("./devices.json", "utf8");
+  var data = fs.readFileSync('./devices.json', 'utf8');
   var fingerprints = JSON.parse(data);
   return Object.values(fingerprints.devices);
 };
@@ -10,7 +10,7 @@ var readDevices = function () {
 class AkamaiGenerator {
   constructor(site) {
     this.device = this.parseDevice();
-    this.version = 1.7;
+    this.version = 1.75;
     this.start_ts = Date.now();
     this.y1 = 2016;
     this.userAgent = this.device.navigator.userAgent;
@@ -21,9 +21,9 @@ class AkamaiGenerator {
     this.vc_cnt = 0;
     this.ke_cnt = 0;
     this.ke_cnt_lmt = 150;
-    this.kact = "";
+    this.kact = '';
     this.ke_vel = 0;
-    this.vcact = "";
+    this.vcact = '';
     this.vc_cnt_lmt = 100;
     this.aj_type = 1;
     this.me_cnt = 0;
@@ -31,16 +31,16 @@ class AkamaiGenerator {
     this.mme_cnt_lmt = 100;
     this.mduce_cnt = 0;
     this.mduce_cnt_lmt = 75;
-    this.mact = "";
+    this.mact = '';
     this.me_vel = 0;
     this.ta = 0;
-    this.tact = "";
+    this.tact = '';
     this.doe_cnt = 0;
     this.dme_cnt = 0;
     this.doe_vel = 0;
     this.dme_vel = 0;
     this.te_vel = 0;
-    this.pact = "";
+    this.pact = '';
     this.pe_vel = 0;
     this.pe_cnt = 0;
     this.te_cnt = 0;
@@ -73,8 +73,8 @@ class AkamaiGenerator {
   parseDevice = function () {
     var devices = readDevices();
     var encodedData = this.randomItem(devices);
-    var deviceDataString = Buffer.from(encodedData, "base64")
-      .toString("utf8")
+    var deviceDataString = Buffer.from(encodedData, 'base64')
+      .toString('utf8')
       .replace(/'/g, '"');
     return JSON.parse(deviceDataString);
   };
@@ -90,38 +90,38 @@ class AkamaiGenerator {
     var mact = this.generateMact(this.randomNumber(1400, 1600));
     this.mact = mact[0];
     this.me_cnt = mact[3];
-    var dmactSections = this.dmact.split(";");
+    var dmactSections = this.dmact.split(';');
     for (
       var _i = 0, dmactSections_1 = dmactSections;
       _i < dmactSections_1.length;
       _i++
     ) {
       var s = dmactSections_1[_i];
-      var section = s.split(",");
+      var section = s.split(',');
       if (section.length === 1) break;
       this.ta += parseInt(section[1]);
       this.dme_vel += parseInt(section[0]) + parseInt(section[1]);
     }
-    var doactSections = this.doact.split(";");
+    var doactSections = this.doact.split(';');
     for (
       var _a = 0, doactSections_1 = doactSections;
       _a < doactSections_1.length;
       _a++
     ) {
       var s = doactSections_1[_a];
-      var section = s.split(",");
+      var section = s.split(',');
       if (section.length === 1) break;
       this.ta += parseInt(section[1]);
       this.doe_vel += parseInt(section[0]) + parseInt(section[1]);
     }
-    var mactSections = this.mact.split(";");
+    var mactSections = this.mact.split(';');
     for (
       var _b = 0, mactSections_1 = mactSections;
       _b < mactSections_1.length;
       _b++
     ) {
       var s = mactSections_1[_b];
-      var section = s.split(",");
+      var section = s.split(',');
       if (section.length === 1) break;
       this.ta += parseInt(section[2]);
       this.me_vel +=
@@ -146,12 +146,12 @@ class AkamaiGenerator {
     this.aj_indx = 0;
     this.js_post = true;
     this.nav_perm = this.device.np;
-    var S = "";
-    var C = "";
-    var X = "";
+    var S = '';
+    var C = '';
+    var X = '';
     // If the passed cookie has a challenge
-    if (abckCookie.includes("||") && !abckCookie.includes("||-1||")) {
-      console.log("Solving challenge cookie...");
+    if (abckCookie.includes('||') && !abckCookie.includes('||-1||')) {
+      console.log('Solving challenge cookie...');
       this.mn_poll();
       var h_1 = this.mn_get_current_challenges();
       if (undefined !== h_1[1]) {
@@ -169,15 +169,15 @@ class AkamaiGenerator {
     }
     var a = this.updatet + this.randomNumber(1, 4);
     var n = this.gd();
-    this.d2 = this.pi("" + this.z1 / 23);
+    this.d2 = this.pi('' + this.z1 / 23);
     var e = this.baseAbck;
-    var o = "do_en";
-    var m = "dm_en";
-    var r = "t_en";
-    var i = o + "," + m + "," + r;
+    var o = 'do_en';
+    var m = 'dm_en';
+    var r = 't_en';
+    var i = o + ',' + m + ',' + r;
     var c = this.getforminfo();
     var b = this.getdurl();
-    var d = this.aj_type + "," + this.aj_indx;
+    var d = this.aj_type + ',' + this.aj_indx;
     var s =
       this.ke_vel +
       this.me_vel +
@@ -187,11 +187,12 @@ class AkamaiGenerator {
       this.pe_vel;
     // console.log(`ke_vel: ${this.ke_vel}, me_vel: ${this.me_vel}, doe_vel: ${this.doe_vel} dme_vel: ${this.dme_vel}, te_vel: ${this.te_vel}, pe_vel: ${this.pe_vel}`)
     // In the official script a var k is declared and returns the ff function
+    // WHAT THE F*** IS THIS
     var l =
       this.ff(80) + this.ff(105) + this.ff(90) + this.ff(116) + this.ff(69);
     var u = this.jrs(this.start_ts);
     var _ = this.get_cf_date() - this.start_ts;
-    var f = this.pi("" + this.d2 / 6);
+    var f = this.pi('' + this.d2 / 6);
     var p = this.device.fas;
     var v = [
       this.ke_vel + 1,
@@ -204,7 +205,7 @@ class AkamaiGenerator {
       a,
       this.init_time,
       this.start_ts,
-      this.device["fpcf.td"],
+      this.device['fpcf.td'],
       this.d2,
       this.ke_cnt,
       this.me_cnt,
@@ -222,85 +223,85 @@ class AkamaiGenerator {
       l,
       u[0],
       u[1],
-      "0",
-      "-1",
+      '0',
+      '-1',
     ];
-    var h = v.join(",");
-    var g = "" + abcK.ab(this.fpValstr);
+    var h = v.join(',');
+    var g = '' + abcK.ab(this.fpValstr);
     // console.log(`S value: ${s}, me_vel + 32: ${this.me_vel + 32}`)
     var w =
       this.device.webgl.fmh +
-      "," +
+      ',' +
       1 +
-      "," +
+      ',' +
       this.device.webgl.ssh +
-      "," +
+      ',' +
       this.device.webgl.wv +
-      "," +
+      ',' +
       this.device.webgl.wr +
-      "," +
+      ',' +
       this.device.webgl.weh +
-      "," +
+      ',' +
       this.device.webgl.wl;
     // Initialize the sensor data with just the version then keep adding the segments
-    var sensor_data = "" + this.version;
+    var sensor_data = '' + this.version;
     // Gd method section
-    sensor_data += "-1,2,-94,-100," + n;
-    sensor_data += "-1,2,-94,-101," + i;
+    sensor_data += '-1,2,-94,-100,' + n;
+    sensor_data += '-1,2,-94,-101,' + i;
     // Add the form info
-    sensor_data += "-1,2,-94,-105," + c;
-    sensor_data += "-1,2,-94,-102," + c;
-    // This is the keyboard data section, im not sure if adding it will improve success rate
-    sensor_data += "-1,2,-94,-108,";
+    sensor_data += '-1,2,-94,-105,' + c;
+    sensor_data += '-1,2,-94,-102,' + c;
+    // This is the keyboard data section, im not sure if adding it will improve success rate (STUPID)
+    sensor_data += '-1,2,-94,-108,';
     // Mouse movement data section
-    sensor_data += "-1,2,-94,-110," + this.mact;
+    sensor_data += '-1,2,-94,-110,' + this.mact;
     // bmak.tact
-    sensor_data += "-1,2,-94,-117,";
-    sensor_data += "-1,2,-94,-111," + this.doact;
-    sensor_data += "-1,2,-94,-109," + this.dmact;
-    sensor_data += "-1,2,-94,-114,";
-    sensor_data += "-1,2,-94,-103,";
+    sensor_data += '-1,2,-94,-117,';
+    sensor_data += '-1,2,-94,-111,' + this.doact;
+    sensor_data += '-1,2,-94,-109,' + this.dmact;
+    sensor_data += '-1,2,-94,-114,';
+    sensor_data += '-1,2,-94,-103,';
     // Site url
-    sensor_data += "-1,2,-94,-112," + b;
-    // This needs to be improved
-    sensor_data += "-1,2,-94,-115," + h;
-    sensor_data += "-1,2,-94,-106," + d;
-    sensor_data += "-1,2,-94,-119," + this.device.mr;
-    sensor_data += "-1,2,-94,-122," + this.device.sed;
+    sensor_data += '-1,2,-94,-112,' + b;
+    // This needs to be improved (STUPID)
+    sensor_data += '-1,2,-94,-115,' + h;
+    sensor_data += '-1,2,-94,-106,' + d;
+    sensor_data += '-1,2,-94,-119,' + this.device.mr;
+    sensor_data += '-1,2,-94,-122,' + this.device.sed;
     // First challenge section
-    sensor_data += "-1,2,-94,-123," + S;
+    sensor_data += '-1,2,-94,-123,' + S;
     // Second challenge section
-    sensor_data += "-1,2,-94,-124," + C;
+    sensor_data += '-1,2,-94,-124,' + C;
     // Third challenge section
-    sensor_data += "-1,2,-94,-126," + X;
-    sensor_data += "-1,2,-94,-127," + this.nav_perm;
-    sensor_data += "-1,2,-94,-70," + this.fpValstr;
-    sensor_data += "-1,2,-94,-80," + g;
-    sensor_data += "-1,2,-94,-116," + this.o9;
+    sensor_data += '-1,2,-94,-126,' + X;
+    sensor_data += '-1,2,-94,-127,' + this.nav_perm;
+    sensor_data += '-1,2,-94,-70,' + this.fpValstr;
+    sensor_data += '-1,2,-94,-80,' + g;
+    sensor_data += '-1,2,-94,-116,' + this.o9;
     var L =
       24 ^
       abcK.ab(
         sensor_data.substring(
-          sensor_data.indexOf("1."),
-          sensor_data.indexOf("-1,2,-94,-70,")
+          sensor_data.indexOf('1.'),
+          sensor_data.indexOf('-1,2,-94,-70,')
         )
       );
-    sensor_data += "-1,2,-94,-118," + L;
-    sensor_data += "-1,2,-94,-129," + w;
-    sensor_data += "-1,2,-94,-121,";
+    sensor_data += '-1,2,-94,-118,' + L;
+    sensor_data += '-1,2,-94,-129,' + w;
+    sensor_data += '-1,2,-94,-121,';
     var T = this.od(
-      "0a46G5m17Vrp4o4c",
-      "afSbep8yjnZUjq3aL010jO15Sawj2VZfdYK8uY90uxq"
+      '0a46G5m17Vrp4o4c',
+      'afSbep8yjnZUjq3aL010jO15Sawj2VZfdYK8uY90uxq'
     ).slice(0, 16);
     var F = Math.floor(this.get_cf_date() / 36e5);
     var D = T + this.od(F, T) + sensor_data;
     sensor_data =
       D +
-      ";" +
+      ';' +
       (this.get_cf_date() - ts_one) +
-      ";" +
+      ';' +
       (this.get_cf_date() - ts_one + this.randomNumber(2, 3)) +
-      ";0";
+      ';0';
     return {
       sensor: sensor_data,
       userAgent: this.device.navigator.userAgent,
@@ -308,25 +309,23 @@ class AkamaiGenerator {
   };
   getforminfo = function () {
     /*
-        I checked the get form info method on multiple browsers and they all seem to have the same value
+        I checked the get form info method on multiple browsers and they all seem to have the same value (IDK WHY I THOUGHT IT WOULD BE DIFFERENT)
         chrome: 0,0,0,0,1487,231,0;0,0,0,1,2863,2863,0;0,0,0,1,3079,3079,0;0,0,0,1,1627,1627,0;
         safari: 0,0,0,0,1487,231,0;0,0,0,1,2863,2863,0;0,0,0,1,3079,3079,0;0,0,0,1,1627,1627,0;
         firefox: 0,0,0,0,1487,231,0;0,0,0,1,2863,2863,0;0,0,0,1,3079,3079,0;0,0,0,1,1627,1627,0;
         * */
-    // const formInfo = '0,0,0,0,1487,231,0;0,0,0,1,2863,2863,0;0,0,0,1,3079,3079,0;0,0,0,1,1627,1627,0;'
-    // 0,0,0,0,2402,310,0;0,0,0,0,1802,310,0;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,-1,0;0,-1,0,0,-1,-1,1;0,-1,0,0,-1,520,0;0,-1,0,0,-1,520,0
     var formInfo =
-      "0,-1,0,0,912,1884,0;0,-1,0,0,886,1768,0;0,1,0,0,1075,1435,0;1,-1,0,0,1366,1798,0;";
+      '0,-1,0,0,912,1884,0;0,-1,0,0,886,1768,0;0,1,0,0,1075,1435,0;1,-1,0,0,1366,1798,0;';
     this.formInfo = formInfo;
     return formInfo;
   };
   getdurl = function () {
-    return "" + this.site;
+    return '' + this.site;
   };
   generateDmact = function (randomNumber) {
     var t = this.get_cf_date() - this.start_ts + randomNumber;
     this.dme_vel = t;
-    return "0," + t + ",-1,-1,-1,-1,-1,-1,-1,-1,-1;";
+    return '0,' + t + ',-1,-1,-1,-1,-1,-1,-1,-1,-1;';
   };
   generateCdoa = function (randomNumber) {
     var t =
@@ -335,7 +334,7 @@ class AkamaiGenerator {
       randomNumber +
       this.randomNumber(1, 3);
     this.doe_vel = t;
-    return this.doe_cnt + "," + t + ",-1,-1,-1;";
+    return this.doe_cnt + ',' + t + ',-1,-1,-1;';
   };
   /**
    * Returns a random item from an array
@@ -382,18 +381,18 @@ class AkamaiGenerator {
     var final_ts = 0;
     // Loop this for the number of mact segments you want
     for (var i = 0; i < number_of_segments; i++) {
-      // Mact timestamps in browser will usually not start at 0, so you will spoof the initial starting timestamp in the line below. It would be a good idea to have it choose a random number within a realistic looking range. Below I just have it set to 900.
+      // Mact timestamps in browser will usually not start at 0, so you will spoof the initial starting timestamp in the line below. It would be a good idea to have it choose a random number within a realistic looking range. (ANY NUMBER SEEMS TO WORK?)
       var new_ts = times[i] + starting_ts;
       // console.log(i + ",1," + new_ts + "," + Math.floor(arrayX[i]) + "," + Math.floor(arrayY[i]) + ";")
       mact_segments.push(
         i +
-          ",1," +
+          ',1,' +
           new_ts +
-          "," +
+          ',' +
           Math.floor(arrayX[i]) +
-          "," +
+          ',' +
           Math.floor(arrayY[i]) +
-          ";"
+          ';'
       );
       me_vel += i + 1 + new_ts + Math.floor(arrayX[i]) + Math.floor(arrayY[i]);
       me_cnt += 1;
@@ -405,7 +404,7 @@ class AkamaiGenerator {
     me_vel += 2;
     // console.log(replaced_last_segment);
     // mact_segments.push(replaced_last_segment)
-    var mact_str = mact_segments.join("");
+    var mact_str = mact_segments.join('');
     return [mact_str, total_ts, me_vel, me_cnt, final_ts];
   };
   mactGenerateLine = function (size, cycles, min, max) {
@@ -532,7 +531,7 @@ class AkamaiGenerator {
     return Date.now();
   };
   gf = function (a) {
-    var element = this.randomItem(["body"]);
+    var element = this.randomItem(['body']);
     return this.ab(element);
   };
   ab = function (a) {
@@ -548,10 +547,10 @@ class AkamaiGenerator {
     // }
     for (
       var t = 0, e = 0;
-      e < a.replace(/\\\"/g, "").replace("/", "").length;
+      e < a.replace(/\\\"/g, '').replace('/', '').length;
       e++
     ) {
-      var n = a.replace(/\\\"/g, "").replace("/", "").charCodeAt(e);
+      var n = a.replace(/\\\"/g, '').replace('/', '').charCodeAt(e);
       n < 128 && (t += n);
     }
     return t;
@@ -561,7 +560,7 @@ class AkamaiGenerator {
     // Get user agent from
     var t = this.uar();
     // Sums the total char code length of the user agent
-    var a = "" + abcK.ab(t);
+    var a = '' + abcK.ab(t);
     var e = this.start_ts / 2;
     // Screen sizing
     var n = this.device.screen.availWidth;
@@ -571,59 +570,59 @@ class AkamaiGenerator {
     var i = this.device.screen.innerWidth;
     var c = this.device.screen.outerHeight;
     var b = this.device.screen.outerWidth;
-    this.z1 = this.pi("" + this.start_ts / (this.y1 * this.y1));
+    this.z1 = this.pi('' + this.start_ts / (this.y1 * this.y1));
     var d = Math.random();
-    var s = this.pi("" + (1e3 * d) / 2);
-    var k = "" + d;
+    var s = this.pi('' + (1e3 * d) / 2);
+    var k = '' + d;
     this.xagg = 12147;
     this.get_browser();
     k = k.slice(0, 11) + s;
     this.bmisc();
     return (
       t +
-      ",uaend," +
+      ',uaend,' +
       this.xagg +
-      "," +
+      ',' +
       this.psub +
-      "," +
+      ',' +
       this.lang +
-      "," +
+      ',' +
       this.prod +
-      "," +
+      ',' +
       this.plen +
-      "," +
+      ',' +
       this.pen +
-      "," +
+      ',' +
       this.wen +
-      "," +
+      ',' +
       this.den +
-      "," +
+      ',' +
       this.z1 +
-      "," +
+      ',' +
       this.d3 +
-      "," +
+      ',' +
       n +
-      "," +
+      ',' +
       o +
-      "," +
+      ',' +
       m +
-      "," +
+      ',' +
       r +
-      "," +
+      ',' +
       i +
-      "," +
+      ',' +
       c +
-      "," +
+      ',' +
       b +
-      "," +
+      ',' +
       this.device.bd +
-      "," +
+      ',' +
       a +
-      "," +
+      ',' +
       k +
-      "," +
+      ',' +
       e +
-      ",0,loc:" +
+      ',0,loc:' +
       this.loc
     );
   };
@@ -643,7 +642,7 @@ class AkamaiGenerator {
     var t = this.x2() % 1e7;
     this.d3 = t;
     for (var n = 0; n < 5; n++) {
-      var o = parseInt("" + this.d3 / Math.pow(10, n)) % 10;
+      var o = parseInt('' + this.d3 / Math.pow(10, n)) % 10;
       var m = o + 1;
       var op = this.cc(o);
       t = op(t, m);
@@ -654,7 +653,7 @@ class AkamaiGenerator {
   bmisc = function () {
     this.pen = 0;
     this.wen = 0;
-    this.loc = "";
+    this.loc = '';
     this.den = 0;
   };
   /* Parse int (this method is redundant and we should use the parse int method from node)*/
@@ -684,7 +683,7 @@ class AkamaiGenerator {
     return n;
   };
   uar = function () {
-    return this.userAgent.replace(/\\|"/g, "");
+    return this.userAgent.replace(/\\|"/g, '');
   };
   ff = function (t) {
     return String.fromCharCode(t);
@@ -721,21 +720,21 @@ class AkamaiGenerator {
   get_mn_params_from_abck = function () {
     var t = [[]];
     try {
-      var a = this.cookie_chk_read("_abck");
-      // Does it matter what size the splitted array is?, lenght is usually 6
-      var e = decodeURIComponent(a).split("~");
+      var a = this.cookie_chk_read('_abck');
+      // Does it matter what size the split array is?, lenght is usually 6
+      var e = decodeURIComponent(a).split('~');
       if (e.length >= 5) {
         // A06042945BDE204D89CA99143D0698D9
         var n = e[0];
         // -1
         var o = e[4];
         // Check if the akamai cookie has a challenge
-        var m = o.split("||");
+        var m = o.split('||');
         if (m.length > 0) {
           for (var r = 0; r < m.length; r++) {
             var i = m[r];
             // check for challenge part, 1-vqIqRtPiPk-500-10-1000-2
-            var c = i.split("-");
+            var c = i.split('-');
             if (c.length >= 5) {
               var b = this.pi(c[0]);
               var d = c[1];
@@ -812,7 +811,7 @@ class AkamaiGenerator {
       var a = 0,
         t = 0,
         e = 0,
-        n = "",
+        n = '',
         o = this.get_cf_date(),
         m = this.mn_cd + this.mn_mc_indx;
       0 == a;
@@ -857,17 +856,18 @@ class AkamaiGenerator {
   };
   mn_pr = function () {
     return (
-      this.mn_al.join(",") +
-      ";" +
-      this.mn_tcl.join(",") +
-      ";" +
-      this.mn_il.join(",") +
-      ";" +
-      this.mn_lg.join(",") +
-      ";"
+      this.mn_al.join(',') +
+      ';' +
+      this.mn_tcl.join(',') +
+      ';' +
+      this.mn_il.join(',') +
+      ';' +
+      this.mn_lg.join(',') +
+      ';'
     );
   };
   mn_s = function (a) {
+    // THIS SEEMS TO BE CONSTANT, I DONT KNOW WHY, BUT IT WORKS.. SO I GUESS ITS FINE (IM GETTING NIGHTMARES)
     var t = [
         1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993,
         2453635748, 2870763221, 3624381080, 310598401, 607225278, 1426881987,
@@ -1012,16 +1012,16 @@ class AkamaiGenerator {
     return e;
   };
   cookie_chk_read = function (t) {
-    var cookie = "_abck=" + this.baseAbck + ";";
+    var cookie = '_abck=' + this.baseAbck + ';';
     // console.log(cookie)
-    for (var a = t + "=", e = cookie.split(";"), n = 0; n < e.length; n++) {
+    for (var a = t + '=', e = cookie.split(';'), n = 0; n < e.length; n++) {
       var o = e[n];
       // check if it is the abck cookie or not
       if (o.indexOf(a) === 0) {
         // returns the cookie without the abck_ part
         var m = o.substring(a.length, o.length);
         // check if cookie has ~ and return the first part of the cookie if it does
-        if (m.indexOf("~") != -1 || decodeURIComponent(m).indexOf("~") != -1)
+        if (m.indexOf('~') != -1 || decodeURIComponent(m).indexOf('~') != -1)
           return m;
       }
     }
@@ -1043,11 +1043,13 @@ class AkamaiGenerator {
             m != a.charCodeAt(o) && (r = String.fromCharCode(m)),
             e.push(r);
         }
-        if (e.length > 0) return e.join("");
+        if (e.length > 0) return e.join('');
       }
     } catch (a) {}
     return a;
   };
 }
+
+// NOT WORTH THE EFFORT XD
 
 export { AkamaiGenerator };
