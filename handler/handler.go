@@ -23,7 +23,7 @@ import (
 
 type Session struct {
 	session   string
-	proxy []string
+	proxy     []string
 	valid     int
 	invalid   int
 	count     int
@@ -91,27 +91,21 @@ func (self *Session) Init(c *fiber.Ctx) {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		Jar: jar,
+		Jar:       jar,
 		Transport: tr,
 	}
 
 	queryValue := c.Query("url")
-	// fmt.Println(queryValue)
-
 	self.URL = queryValue
 
 	if self.count >= 0 {
-		v, _ := url.Parse("shopdisney.com")
-
-		RemoveCookie(v, "_abck")
-		RemoveCookie(v, "bm_sz")
-
 		self.session = ""
 		self.count = 0
 	}
 
 	req, err := http.NewRequest("GET", queryValue, strings.NewReader(""))
 
+	// NOT SURE WHY I HAVE THIS USERAGENT HERE BUT I'M TOO SCARED TO REMOVE IT
 	req.Header = map[string][]string{
 		"User-Agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
 	}
@@ -130,13 +124,13 @@ func (self *Session) Init(c *fiber.Ctx) {
 		}
 	}
 
-	if (len(self.proxy) > 0) {
+	if len(self.proxy) > 0 {
 		prox := self.proxy[rand.Intn(len(self.proxy))]
 		proxy := strings.Split(string(prox), ":")
 		proxyUri := fmt.Sprintf("http://%v:%v@%v:%v", proxy[2], proxy[3], proxy[0], proxy[1])
-	
+
 		// fmt.Println(proxyUri)
-	
+
 		proxyUrl, _ := url.Parse(proxyUri)
 
 		tr.Proxy = http.ProxyURL(proxyUrl)
@@ -144,11 +138,7 @@ func (self *Session) Init(c *fiber.Ctx) {
 
 	dt := time.Now()
 
-	color.Yellow("[%v] Got invalid cookie - (%v)", dt.Format("15:04:05.000"), resp.StatusCode)
-
-	// fmt.Println(resp)
-
-	// fmt.Println("Cookie:", self.session)
+	color.Yellow("[%v] Got invalid cookie (%v)", dt.Format("15:04:05.000"), resp.StatusCode)
 
 	c.Send(self.session)
 }
@@ -194,11 +184,9 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 
 	b, _ := io.ReadAll(resp.Body)
 
-	// fmt.Println("Response:", string(b), "Cookie:", self.session)
-
 	dt := time.Now()
 
-	color.Yellow("[%v] Sensor post [%v] - (%v)", dt.Format("15:04:05.000"), self.count, resp.StatusCode)
+	color.Yellow("[%v] Sensor post (%v)", dt.Format("15:04:05.000"), resp.StatusCode)
 
 	arr := fmt.Sprintf("%v,%v,%v", string(b), self.session, p.UA)
 
@@ -215,24 +203,14 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 
 	// fmt.Println(len(cookie))
 
-	if self.count >= 3 && !strings.Contains(cookie, "||") && len(cookie) == 473 {
-		color.Green("[%v] Valid cookie recieved [%v] - (Cookie length: %v)", dt.Format("15:04:05.000"), self.count, len(cookie))
-
-		v, _ := url.Parse("shopdisney.com")
-
-		RemoveCookie(v, "_abck")
-		RemoveCookie(v, "bm_sz")
+	if self.count >= 3 && !strings.Contains(cookie, "||") {
+		color.Green("[%v] Valid cookie recieved", dt.Format("15:04:05.000"))
 
 		self.valid++
 		self.session = ""
 		self.count = 0
-	} else if self.count >= 3 && len(cookie) != 473 {
-		color.Red("[%v] Invalid cookie recieved [%v]", dt.Format("15:04:05.000"), self.count)
-
-		v, _ := url.Parse("shopdisney.com")
-
-		RemoveCookie(v, "_abck")
-		RemoveCookie(v, "bm_sz")
+	} else if self.count >= 3 && strings.Contains(cookie, "||") {
+		color.Red("[%v] Invalid cookie recieved", dt.Format("15:04:05.000"))
 
 		self.invalid++
 		self.session = ""
@@ -246,7 +224,7 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 	c.Send(arr)
 }
 
-// RemoveCookie removes the specified cookie from the request client cookie jar
+// RemoveCookie removes the specified cookie from the request client cookie jar for the given URL.
 func RemoveCookie(u *url.URL, cookie string) error {
 	if client.Jar == nil {
 		return NoCookieJarErr

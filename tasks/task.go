@@ -7,10 +7,10 @@ import (
 	"os"
 )
 
-
 func Initialize() []string {
 	var arr []string
 
+	// DO NOT RUN THIS FOR TOO MANY REQUESTS, IT WILL CAUSE A RATE LIMIT ON THE IP, AND YOU WILL BE BLOCKED FROM THE SITE!! (USE A PROXYLIST)
 	jsonFile, err := os.Open("./proxies/proxies.json")
 	if err != nil {
 		fmt.Println(err)
@@ -24,13 +24,9 @@ func Initialize() []string {
 
 	json.Unmarshal(byteValue, &proxy)
 
-	// arr = append(arr, proxy.Proxies[rand.Intn(len(proxy.Proxies))])
-
 	for i := 0; i < len(proxy.Proxies); i++ {
 		arr = append(arr, proxy.Proxies[i])
 	}
-
-	// fmt.Println(arr)
 
 	return arr
 }
