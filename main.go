@@ -6,8 +6,8 @@ import (
 )
 
 func main() {
-	taskArray := proxies.Initialize()
+	// HORRIBLE WAY TO WRITE CODE, BUT IT WORKS FOR NOW
+	proxyArray := proxies.Initialize()
 
-
-	handler.Initialize(taskArray)
+	handler.Initialize(proxyArray)
 }
