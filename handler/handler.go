@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fatih/color"
@@ -21,7 +22,12 @@ import (
 	"github.com/useflyent/fhttp/cookiejar"
 )
 
+// NoCookieJarErr is returned when the HTTP client has no cookie jar configured.
+var NoCookieJarErr = errors.New("no cookie jar in client")
+
+// Session holds the state for an active proxy session.
 type Session struct {
+	mu        sync.Mutex
 	session   string
 	proxy     []string
 	valid     int
@@ -31,17 +37,16 @@ type Session struct {
 	URL       string
 }
 
+// Payload represents the JSON body for sensor POST requests.
 type Payload struct {
-	Url    string `json:"url"`
+	URL    string `json:"url"`
 	Sensor string `json:"sensor"`
 	UA     string `json:"useragent"`
 }
 
 var (
-	NoCookieJarErr = errors.New("no cookie jar in client")
-
 	tr = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 	}
 	client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -51,41 +56,37 @@ var (
 	}
 )
 
+// Initialize creates a Session with the given proxy list and starts the HTTP server.
 func Initialize(proxy []string) {
-	session := Session{}
-
-	session.proxy = proxy
-	session.count = 0
-	session.valid = 0
-	session.invalid = 0
-
-	session.startHandler()
+	s := &Session{
+		proxy: proxy,
+	}
+	s.startHandler()
 }
 
-func (self *Session) startHandler() {
-	// Fiber instance
+func (s *Session) startHandler() {
 	app := fiber.New()
 
-	// Routes
-	app.Get("/init", self.Init)
+	app.Get("/init", s.Init)
+	app.Post("/tls", s.tlsClient)
 
-	app.Post("/tls", self.tlsClient)
-
-	// start server
-	app.Listen(3000)
+	log.Fatal(app.Listen(3000))
 }
 
-// Handler
-func (self *Session) Init(c *fiber.Ctx) {
-	// All users of cookiejar should import "golang.org/x/net/publicsuffix"
+// Init handles GET /init?url={url} — initialises a session and extracts the _abck cookie.
+func (s *Session) Init(c *fiber.Ctx) {
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
-		log.Fatal(err)
+		color.Red("Failed to create cookie jar: %v", err)
+		c.Status(500).Send("failed to create cookie jar")
+		return
 	}
 
+	// NOTE: tr and client are package-level variables reassigned here on every
+	// request, which is not safe for concurrent use. Consider moving them to
+	// per-session scope if concurrent requests are needed.
 	tr = &http.Transport{
-		// Proxy:           http.ProxyURL(proxyUrl),
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 	}
 	client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -96,70 +97,89 @@ func (self *Session) Init(c *fiber.Ctx) {
 	}
 
 	queryValue := c.Query("url")
-	self.URL = queryValue
-
-	if self.count >= 0 {
-		self.session = ""
-		self.count = 0
+	if queryValue == "" {
+		c.Status(400).Send("url query parameter is required")
+		return
 	}
 
-	req, err := http.NewRequest("GET", queryValue, strings.NewReader(""))
+	s.mu.Lock()
+	s.URL = queryValue
+	if s.count >= 0 {
+		s.session = ""
+		s.count = 0
+	}
+	s.mu.Unlock()
 
-	// NOT SURE WHY I HAVE THIS USERAGENT HERE BUT I'M TOO SCARED TO REMOVE IT
+	req, err := http.NewRequest("GET", queryValue, strings.NewReader(""))
+	if err != nil {
+		color.Red("Failed to create request: %v", err)
+		c.Status(500).Send("failed to create request")
+		return
+	}
+
 	req.Header = map[string][]string{
 		"User-Agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
 	}
 
+	resp, err := client.Do(req)
 	if err != nil {
-		color.Red("Error occured", err)
+		color.Red("Request failed: %v", err)
+		c.Status(500).Send("request failed")
+		return
 	}
+	defer resp.Body.Close()
 
-	resp, _ := client.Do(req)
-
+	s.mu.Lock()
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "_abck" {
-			if self.session == "" {
-				self.session = cookie.Value
+		if cookie.Name == "_abck" && s.session == "" {
+			s.session = cookie.Value
+		}
+	}
+	session := s.session
+	s.mu.Unlock()
+
+	if len(s.proxy) > 0 {
+		prox := s.proxy[rand.Intn(len(s.proxy))]
+		parts := strings.Split(prox, ":")
+		if len(parts) == 4 {
+			proxyURI := fmt.Sprintf("http://%v:%v@%v:%v", parts[2], parts[3], parts[0], parts[1])
+			proxyURL, err := url.Parse(proxyURI)
+			if err != nil {
+				color.Red("Failed to parse proxy URL: %v", err)
+			} else {
+				tr.Proxy = http.ProxyURL(proxyURL)
 			}
 		}
 	}
 
-	if len(self.proxy) > 0 {
-		prox := self.proxy[rand.Intn(len(self.proxy))]
-		proxy := strings.Split(string(prox), ":")
-		proxyUri := fmt.Sprintf("http://%v:%v@%v:%v", proxy[2], proxy[3], proxy[0], proxy[1])
+	color.Yellow("[%v] Got invalid cookie (%v)", time.Now().Format("15:04:05.000"), resp.StatusCode)
 
-		// fmt.Println(proxyUri)
-
-		proxyUrl, _ := url.Parse(proxyUri)
-
-		tr.Proxy = http.ProxyURL(proxyUrl)
-	}
-
-	dt := time.Now()
-
-	color.Yellow("[%v] Got invalid cookie (%v)", dt.Format("15:04:05.000"), resp.StatusCode)
-
-	c.Send(self.session)
+	c.Send(session)
 }
 
-func (self *Session) tlsClient(c *fiber.Ctx) {
+// tlsClient handles POST /tls — submits sensor data and tracks cookie validity.
+func (s *Session) tlsClient(c *fiber.Ctx) {
 	p := new(Payload)
-
 	if err := c.BodyParser(p); err != nil {
-		fmt.Println(err)
+		color.Red("Failed to parse body: %v", err)
+		c.Status(400).Send("invalid request body")
+		return
 	}
-
-	// fmt.Println(p.Url)
 
 	values := map[string]string{"sensor_data": p.Sensor}
 
-	jsonBody, _ := json.Marshal(values)
-
-	req, err := http.NewRequest("POST", p.Url, bytes.NewBuffer(jsonBody))
-
+	jsonBody, err := json.Marshal(values)
 	if err != nil {
-		color.Red("Error occured", err)
+		color.Red("Failed to marshal JSON: %v", err)
+		c.Status(500).Send("failed to marshal JSON")
+		return
+	}
+
+	req, err := http.NewRequest("POST", p.URL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		color.Red("Failed to create request: %v", err)
+		c.Status(500).Send("failed to create request")
+		return
 	}
 
 	req.Header = map[string][]string{
@@ -167,76 +187,77 @@ func (self *Session) tlsClient(c *fiber.Ctx) {
 		"Content-Type": {"application/json"},
 	}
 
-	resp, _ := client.Do(req)
-	self.count++
-
-	// fmt.Println(resp.Cookies())
-
-	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "_abck" {
-			if self.session == "" {
-				self.session = cookie.Value
-			}
-		}
+	resp, err := client.Do(req)
+	if err != nil {
+		color.Red("Request failed: %v", err)
+		c.Status(500).Send("request failed")
+		return
 	}
-
 	defer resp.Body.Close()
 
-	b, _ := io.ReadAll(resp.Body)
+	s.mu.Lock()
+	s.count++
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "_abck" && s.session == "" {
+			s.session = cookie.Value
+		}
+	}
+	currentCount := s.count
+	currentSession := s.session
+	s.mu.Unlock()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		color.Red("Failed to read response body: %v", err)
+		c.Status(500).Send("failed to read response body")
+		return
+	}
 
 	dt := time.Now()
-
 	color.Yellow("[%v] Sensor post (%v)", dt.Format("15:04:05.000"), resp.StatusCode)
 
-	arr := fmt.Sprintf("%v,%v,%v", string(b), self.session, p.UA)
-
+	arr := fmt.Sprintf("%v,%v,%v", string(body), currentSession, p.UA)
 	array := strings.Split(arr, ",")
-
-	if strings.Contains(string(array[1]), "||") {
-		self.challenge = true
-	} else {
-		self.challenge = false
+	if len(array) < 2 {
+		color.Red("[%v] Unexpected response format", dt.Format("15:04:05.000"))
+		c.Status(500).Send("unexpected response format")
+		return
 	}
 
-	cookie := string(array[1])
-	// fmt.Println(cookie)
+	cookie := array[1]
+	isChallenge := strings.Contains(cookie, "||")
 
-	// fmt.Println(len(cookie))
-
-	if self.count >= 3 && !strings.Contains(cookie, "||") {
-		color.Green("[%v] Valid cookie recieved", dt.Format("15:04:05.000"))
-
-		self.valid++
-		self.session = ""
-		self.count = 0
-	} else if self.count >= 3 && strings.Contains(cookie, "||") {
-		color.Red("[%v] Invalid cookie recieved", dt.Format("15:04:05.000"))
-
-		self.invalid++
-		self.session = ""
-		self.count = 0
+	s.mu.Lock()
+	s.challenge = isChallenge
+	if currentCount >= 3 {
+		if !isChallenge {
+			color.Green("[%v] Valid cookie received", dt.Format("15:04:05.000"))
+			s.valid++
+		} else {
+			color.Red("[%v] Invalid cookie received", dt.Format("15:04:05.000"))
+			s.invalid++
+		}
+		s.session = ""
+		s.count = 0
 	}
-
-	if self.valid+self.invalid == 10 {
-		color.Green("\n\n\n[%v] Valid rate: %v", dt.Format("15:04:05.000"), self.invalid/self.valid)
+	if s.valid+s.invalid == 10 && s.valid > 0 {
+		validRate := float64(s.valid) / float64(s.valid+s.invalid) * 100
+		color.Green("\n\n\n[%v] Valid rate: %.1f%%", dt.Format("15:04:05.000"), validRate)
 	}
+	s.mu.Unlock()
 
 	c.Send(arr)
 }
 
-// RemoveCookie removes the specified cookie from the request client cookie jar for the given URL.
+// RemoveCookie removes the named cookie from the client's cookie jar for the given URL.
 func RemoveCookie(u *url.URL, cookie string) error {
 	if client.Jar == nil {
 		return NoCookieJarErr
 	}
 
-	newCookie := &http.Cookie{
-		Name:   cookie,
-		Value:  "",
-		MaxAge: -1,
-	}
-
-	client.Jar.SetCookies(u, []*http.Cookie{newCookie})
+	client.Jar.SetCookies(u, []*http.Cookie{
+		{Name: cookie, Value: "", MaxAge: -1},
+	})
 
 	return nil
 }
