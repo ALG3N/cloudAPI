@@ -10,8 +10,11 @@ import (
 	"log"
 	"math/rand"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fatih/color"
@@ -35,6 +38,8 @@ type Session struct {
 	count     int
 	challenge bool
 	URL       string
+	tr        *http.Transport
+	client    *http.Client
 }
 
 // Payload represents the JSON body for sensor POST requests.
@@ -44,37 +49,77 @@ type Payload struct {
 	UA     string `json:"useragent"`
 }
 
-var (
-	tr = &http.Transport{
+// TLSResponse is the JSON response returned by the /tls endpoint.
+type TLSResponse struct {
+	Body      string `json:"body"`
+	Cookie    string `json:"cookie"`
+	UserAgent string `json:"useragent"`
+	Challenge bool   `json:"challenge"`
+}
+
+// newTransport returns a fresh HTTP transport with TLS verification disabled.
+func newTransport() *http.Transport {
+	return &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
 	}
-	client = &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-		Transport: tr,
-	}
-)
+}
 
 // Initialize creates a Session with the given proxy list and starts the HTTP server.
 func Initialize(proxy []string) {
+	tr := newTransport()
 	s := &Session{
 		proxy: proxy,
+		tr:    tr,
+		client: &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+			Transport: tr,
+		},
 	}
-	s.startHandler()
+	if err := s.startHandler(); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func (s *Session) startHandler() {
-	app := fiber.New()
+func (s *Session) startHandler() error {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	app := fiber.New(&fiber.Settings{
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	})
 
 	app.Get("/init", s.Init)
 	app.Post("/tls", s.tlsClient)
 
-	log.Fatal(app.Listen(3000))
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-quit
+		log.Println("Shutting down server...")
+		if err := app.Shutdown(); err != nil {
+			log.Printf("Error during shutdown: %v", err)
+		}
+	}()
+
+	log.Printf("Server listening on :%s", port)
+	return app.Listen(":" + port)
 }
 
 // Init handles GET /init?url={url} — initialises a session and extracts the _abck cookie.
 func (s *Session) Init(c *fiber.Ctx) {
+	queryValue := c.Query("url")
+	if queryValue == "" {
+		c.Status(400).Send("url query parameter is required")
+		return
+	}
+
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		color.Red("Failed to create cookie jar: %v", err)
@@ -82,13 +127,8 @@ func (s *Session) Init(c *fiber.Ctx) {
 		return
 	}
 
-	// NOTE: tr and client are package-level variables reassigned here on every
-	// request, which is not safe for concurrent use. Consider moving them to
-	// per-session scope if concurrent requests are needed.
-	tr = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-	}
-	client = &http.Client{
+	tr := newTransport()
+	localClient := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -96,18 +136,12 @@ func (s *Session) Init(c *fiber.Ctx) {
 		Transport: tr,
 	}
 
-	queryValue := c.Query("url")
-	if queryValue == "" {
-		c.Status(400).Send("url query parameter is required")
-		return
-	}
-
 	s.mu.Lock()
 	s.URL = queryValue
-	if s.count >= 0 {
-		s.session = ""
-		s.count = 0
-	}
+	s.tr = tr
+	s.client = localClient
+	s.count = 0
+	s.session = ""
 	s.mu.Unlock()
 
 	req, err := http.NewRequest("GET", queryValue, strings.NewReader(""))
@@ -121,7 +155,7 @@ func (s *Session) Init(c *fiber.Ctx) {
 		"User-Agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"},
 	}
 
-	resp, err := client.Do(req)
+	resp, err := localClient.Do(req)
 	if err != nil {
 		color.Red("Request failed: %v", err)
 		c.Status(500).Send("request failed")
@@ -145,14 +179,14 @@ func (s *Session) Init(c *fiber.Ctx) {
 			proxyURI := fmt.Sprintf("http://%v:%v@%v:%v", parts[2], parts[3], parts[0], parts[1])
 			proxyURL, err := url.Parse(proxyURI)
 			if err != nil {
-				color.Red("Failed to parse proxy URL: %v", err)
+				logRequest(queryValue, fmt.Sprintf("Failed to parse proxy URL: %v", err), true)
 			} else {
 				tr.Proxy = http.ProxyURL(proxyURL)
 			}
 		}
 	}
 
-	color.Yellow("[%v] Got invalid cookie (%v)", time.Now().Format("15:04:05.000"), resp.StatusCode)
+	logRequest(queryValue, fmt.Sprintf("Got initial cookie (%v)", resp.StatusCode), false)
 
 	c.Send(session)
 }
@@ -166,9 +200,7 @@ func (s *Session) tlsClient(c *fiber.Ctx) {
 		return
 	}
 
-	values := map[string]string{"sensor_data": p.Sensor}
-
-	jsonBody, err := json.Marshal(values)
+	jsonBody, err := json.Marshal(map[string]string{"sensor_data": p.Sensor})
 	if err != nil {
 		color.Red("Failed to marshal JSON: %v", err)
 		c.Status(500).Send("failed to marshal JSON")
@@ -187,7 +219,12 @@ func (s *Session) tlsClient(c *fiber.Ctx) {
 		"Content-Type": {"application/json"},
 	}
 
-	resp, err := client.Do(req)
+	s.mu.Lock()
+	cl := s.client
+	siteURL := s.URL
+	s.mu.Unlock()
+
+	resp, err := cl.Do(req)
 	if err != nil {
 		color.Red("Request failed: %v", err)
 		c.Status(500).Send("request failed")
@@ -213,49 +250,59 @@ func (s *Session) tlsClient(c *fiber.Ctx) {
 		return
 	}
 
-	dt := time.Now()
-	color.Yellow("[%v] Sensor post (%v)", dt.Format("15:04:05.000"), resp.StatusCode)
+	logRequest(siteURL, fmt.Sprintf("Sensor post (%v)", resp.StatusCode), false)
 
-	arr := fmt.Sprintf("%v,%v,%v", string(body), currentSession, p.UA)
-	array := strings.Split(arr, ",")
-	if len(array) < 2 {
-		color.Red("[%v] Unexpected response format", dt.Format("15:04:05.000"))
-		c.Status(500).Send("unexpected response format")
-		return
-	}
+	isChallenge := strings.Contains(currentSession, "||")
 
-	cookie := array[1]
-	isChallenge := strings.Contains(cookie, "||")
-
+	// Capture all values needed for logging before taking the lock.
 	s.mu.Lock()
 	s.challenge = isChallenge
+	var cookieLogMsg string
+	var cookieLogErr bool
 	if currentCount >= 3 {
 		if !isChallenge {
-			color.Green("[%v] Valid cookie received", dt.Format("15:04:05.000"))
+			cookieLogMsg = "Valid cookie received"
 			s.valid++
 		} else {
-			color.Red("[%v] Invalid cookie received", dt.Format("15:04:05.000"))
+			cookieLogMsg = "Invalid cookie received"
+			cookieLogErr = true
 			s.invalid++
 		}
 		s.session = ""
 		s.count = 0
 	}
-	if s.valid+s.invalid == 10 && s.valid > 0 {
-		validRate := float64(s.valid) / float64(s.valid+s.invalid) * 100
-		color.Green("\n\n\n[%v] Valid rate: %.1f%%", dt.Format("15:04:05.000"), validRate)
+	var validRate float64
+	printRate := s.valid+s.invalid == 10 && s.valid > 0
+	if printRate {
+		validRate = float64(s.valid) / float64(s.valid+s.invalid) * 100
 	}
 	s.mu.Unlock()
 
-	c.Send(arr)
+	if cookieLogMsg != "" {
+		logRequest(siteURL, cookieLogMsg, cookieLogErr)
+	}
+	if printRate {
+		color.Green("\n[%v] Valid rate: %.1f%%", time.Now().Format("15:04:05.000"), validRate)
+	}
+
+	c.JSON(TLSResponse{
+		Body:      string(body),
+		Cookie:    currentSession,
+		UserAgent: p.UA,
+		Challenge: isChallenge,
+	})
 }
 
-// RemoveCookie removes the named cookie from the client's cookie jar for the given URL.
-func RemoveCookie(u *url.URL, cookie string) error {
-	if client.Jar == nil {
+// RemoveCookie removes the named cookie from the session's cookie jar for the given URL.
+func (s *Session) RemoveCookie(u *url.URL, cookie string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.client.Jar == nil {
 		return NoCookieJarErr
 	}
 
-	client.Jar.SetCookies(u, []*http.Cookie{
+	s.client.Jar.SetCookies(u, []*http.Cookie{
 		{Name: cookie, Value: "", MaxAge: -1},
 	})
 

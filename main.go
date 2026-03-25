@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/ALG3N/cloudAPI/handler"
-	"github.com/ALG3N/cloudAPI/tasks"
+	"github.com/ALG3N/cloudAPI/proxies"
 )
 
 func main() {
-	proxyArray := tasks.Initialize()
+	proxyArray := proxies.Initialize()
 	handler.Initialize(proxyArray)
 }
