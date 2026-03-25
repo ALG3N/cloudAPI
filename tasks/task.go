@@ -3,30 +3,30 @@ package proxies
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
+// Initialize loads the proxy list from ./proxies/proxies.json and returns it as a string slice.
 func Initialize() []string {
-	var arr []string
-
-	// DO NOT RUN THIS FOR TOO MANY REQUESTS, IT WILL CAUSE A RATE LIMIT ON THE IP, AND YOU WILL BE BLOCKED FROM THE SITE!! (USE A PROXYLIST)
 	jsonFile, err := os.Open("./proxies/proxies.json")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("failed to open proxies file:", err)
+		return nil
 	}
-
 	defer jsonFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	var proxy Proxies
-
-	json.Unmarshal(byteValue, &proxy)
-
-	for i := 0; i < len(proxy.Proxies); i++ {
-		arr = append(arr, proxy.Proxies[i])
+	byteValue, err := io.ReadAll(jsonFile)
+	if err != nil {
+		fmt.Println("failed to read proxies file:", err)
+		return nil
 	}
 
-	return arr
+	var proxy Proxies
+	if err := json.Unmarshal(byteValue, &proxy); err != nil {
+		fmt.Println("failed to parse proxies file:", err)
+		return nil
+	}
+
+	return proxy.Proxies
 }

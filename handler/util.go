@@ -8,15 +8,18 @@ import (
 	"github.com/gookit/color"
 )
 
-// JUST A FUNCTION TO PRINT OUT THE TIME, SITE, AND STATE OF THE REQUEST FOR THE AESTHETICS..
-func self(sitename, state string, error bool) {
-	site := strings.Split(sitename, ".")[1]
-	time := time.Now()
-	formattedTime := time.Format("15:04:05.000")
+// logRequest prints a timestamped, coloured log line for a given site and state.
+func logRequest(sitename, state string, isError bool) {
+	parts := strings.Split(sitename, ".")
+	site := sitename
+	if len(parts) >= 2 {
+		site = parts[1]
+	}
 
-	base := fmt.Sprintf("[%v] [%v]", formattedTime, strings.ToUpper(site))
+	now := time.Now()
+	base := fmt.Sprintf("[%v] [%v]", now.Format("15:04:05.000"), strings.ToUpper(site))
 
-	if error {
+	if isError {
 		color.Red.Printf("%v %v\n", base, state)
 	} else {
 		color.Yellow.Printf("%v %v\n", base, state)
